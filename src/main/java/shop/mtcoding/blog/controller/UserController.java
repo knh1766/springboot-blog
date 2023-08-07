@@ -1,11 +1,15 @@
 package shop.mtcoding.blog.controller;
 
+import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 import shop.mtcoding.blog.dto.JoinDTO;
 import shop.mtcoding.blog.dto.LoginDTO;
@@ -20,6 +24,18 @@ public class UserController {
 
     @Autowired
     private HttpSession session; // request는 가방, session은 서랍
+
+    // localhost:8080/check?username=ssar
+    // ResponseEntity 데이터를 응답함 이거쓰면 리스펀스바디안써도됨
+    @GetMapping("/check")
+    public ResponseEntity<String> check(String username) {
+        User user = userRepository.findByUsername(username);
+        if (user != null) {
+            return new ResponseEntity<String>("유저네임이 중복되었습니다", HttpStatus.BAD_REQUEST);
+        }
+        return new ResponseEntity<String>("유저네임을 사용할 수 있습니다", HttpStatus.OK);
+
+    }
 
     @PostMapping("/login")
     public String login(LoginDTO loginDTO) {
@@ -45,21 +61,22 @@ public class UserController {
     // 실무
     @PostMapping("/join")
     public String join(JoinDTO joinDTO) {
-        // validation check 유효성검사
+        // validation check (유효성 검사)
         if (joinDTO.getUsername() == null || joinDTO.getUsername().isEmpty()) {
             return "redirect:/40x";
         }
         if (joinDTO.getPassword() == null || joinDTO.getPassword().isEmpty()) {
             return "redirect:/40x";
         }
-
-        try {
-            userRepository.save(joinDTO); // 핵심기능
-
-        } catch (Exception e) {
+        if (joinDTO.getEmail() == null || joinDTO.getEmail().isEmpty()) {
+            return "redirect:/40x";
+        }
+        // DB에 해당 username이 있는지 체크해보기
+        User user = userRepository.findByUsername(joinDTO.getUsername());
+        if (user != null) {
             return "redirect:/50x";
         }
-
+        userRepository.save(joinDTO); // 핵심 기능 회원가입됨
         return "redirect:/loginForm";
     }
 
@@ -112,7 +129,7 @@ public class UserController {
 
     @GetMapping("/logout")
     public String logout() {
-        session.invalidate(); // 세션무효화(내 서랍을 비우는 것)
+        session.invalidate();// (서랍을 비우는 것)
         return "redirect:/";
     }
 
