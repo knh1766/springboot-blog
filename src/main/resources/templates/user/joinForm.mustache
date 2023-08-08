@@ -66,7 +66,7 @@
     // 1. DOM으로 부터 값 가져오기
     let username = document.querySelector("#username").value;
     console.log("유저네임", username);
-    // 2. 통신하기
+    // 2. 통신하기 fetch는 자바스크립트에서 통신하기위한함수
     let response = await fetch(`/check?username=${username}`);
     // 3. 파싱하기
     let responseBody = await response.text(); // response.json();
