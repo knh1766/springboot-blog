@@ -6,7 +6,7 @@
     <div class="card-header"><b>회원수정을 해주세요</b></div>
     <div class="card-body">
       <form
-        action="/user/update"
+        action="/user/{{ sessionUser.id }}/update"
         method="post"
         enctype="application/x-www-form-urlencoded"
       >
@@ -16,7 +16,7 @@
             class="form-control"
             placeholder="Enter username"
             name="username"
-            disabled
+            value="{{ sessionUser.username }}"
           />
         </div>
         <div class="mb-3">
@@ -33,7 +33,7 @@
             class="form-control"
             placeholder="Enter email"
             name="email"
-            disabled
+            value="{{ sessionUser.email }}"
           />
         </div>
         <button type="submit" class="btn btn-primary form-control">

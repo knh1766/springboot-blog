@@ -10,19 +10,27 @@ import javax.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-@Setter
 @Getter
-@Table(name = "user_tb")
-@Entity
+@Setter
+@Table(name = "user_tb") // 테이블 이름을 붙이기 위해 사용, DB는 대소문자를 구분함.
+@Entity // ddl-auto: create일때 테이블 제작
 public class User {
+
+    // id : PK, auto_increment
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @Column(nullable = false, length = 20, unique = true)
+    // username : not null, unique, length <= 20
+    @Column(nullable = false, unique = true, length = 20)
     private String username;
-    @Column(nullable = false, length = 20)
+
+    // password : not null, length <= 100
+    @Column(nullable = false, length = 100)
     private String password;
-    @Column(nullable = false, length = 20)
+
+    // email : not null, unique, length <= 20
+    @Column(nullable = false, unique = true, length = 20)
     private String email;
+
 }

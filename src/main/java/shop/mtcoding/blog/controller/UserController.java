@@ -3,16 +3,19 @@ package shop.mtcoding.blog.controller;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
+import org.mindrot.jbcrypt.BCrypt;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import shop.mtcoding.blog.dto.JoinDTO;
 import shop.mtcoding.blog.dto.LoginDTO;
+import shop.mtcoding.blog.dto.UserUpdateDTO;
 import shop.mtcoding.blog.model.User;
 import shop.mtcoding.blog.repository.UserRepository;
 
@@ -39,6 +42,7 @@ public class UserController {
 
     @PostMapping("/login")
     public String login(LoginDTO loginDTO) {
+
         if (loginDTO.getUsername() == null || loginDTO.getUsername().isEmpty()) {
             return "redirect:/40x";
         }
@@ -49,13 +53,21 @@ public class UserController {
         // 핵심기능
 
         try {
-            User user = userRepository.findByUsrnameAndPassword(loginDTO);
-            session.setAttribute("sessionUser", user);
-            return "redirect:/";
+            User user = userRepository.findByUsername(loginDTO.getUsername());// LoginDTO로 받은 유저네임과 비밀번호중에 유저네임으로 User
+                                                                              // 찾기
+            System.out.println("loginDTO.getPassword() : " + loginDTO.getPassword());
+            System.out.println("user.getPassword() : " + user.getPassword());
+
+            // user.getPassword() == loginDTO.getPassword()
+            if (BCrypt.checkpw(loginDTO.getPassword(), user.getPassword())) {
+                session.setAttribute("sessionUser", user);
+                return "redirect:/";
+            }
+
         } catch (Exception e) {
             return "redirect:/exLogin";
         }
-
+        return "redirect:/exLogin";
     }
 
     // 실무
@@ -133,4 +145,36 @@ public class UserController {
         return "redirect:/";
     }
 
+    // 회원정보수정
+    @PostMapping("/user/{id}/update")
+    public String update(@PathVariable Integer id, UserUpdateDTO userUpdateDTO) {
+        // 1. 인증 검사
+        User sessionUser = (User) session.getAttribute("sessionUser");
+        if (sessionUser == null) {
+            System.out.println("인증 실패");
+            return "redirect:/loginForm";
+        }
+        System.out.println("인증검사 통과");
+        // // 2. 권한 체크
+        User user = userRepository.findById(id);
+        if (user.getId() != sessionUser.getId()) {
+            System.out.println("권한 없음");
+            return "redirect:/loginForm";
+        }
+        System.out.println("권한체크 통과");
+        // 3. 유효성 검사(부가 로직)
+        if (user.getUsername() == null || user.getUsername().isEmpty()) {
+            return "redirect:/40x";
+        }
+        if (user.getPassword() == null || user.getPassword().isEmpty()) {
+            return "redirect:/40x";
+        }
+        System.out.println("유효성 검사 통과");
+        // 4. 핵심 기능
+        System.out.println("update 전");
+        userRepository.update(userUpdateDTO, id);
+        System.out.println("update 후");
+
+        return "redirect:/";
+    }
 }
