@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import shop.mtcoding.blog.dto.BoardDetailDTO;
+import shop.mtcoding.blog.dto.BoardDetailDTOV2;
 import shop.mtcoding.blog.dto.UpdateDTO;
 import shop.mtcoding.blog.dto.WriteDTO;
 import shop.mtcoding.blog.model.Board;
@@ -30,14 +31,57 @@ public class BoardController {
 
     @Autowired
     private BoardRepository boardRepository;
+
     @Autowired
     private ReplyRepository replyRepository;
 
     @ResponseBody
-    @GetMapping("/test/reply")
-    public List<Reply> test2() {
-        List<Reply> replys = replyRepository.findByBoardId(1);
-        return replys;
+    @GetMapping("/test/count")
+    public String testCount() {
+        int count = boardRepository.count("2");
+        return count + "";
+    }
+
+    // http://localhost:8080?num=4
+    @GetMapping({ "/", "/board" })
+    public String index(
+            String keyword,
+            @RequestParam(defaultValue = "0") Integer page,
+            HttpServletRequest request) {
+        // 1. 유효성 검사 X
+        // 2. 인증검사 X
+
+        List<Board> boardList = null;
+        int totalCount = 0;
+        if (keyword == null) {
+            boardList = boardRepository.findAll(page); // page = 1
+            totalCount = boardRepository.count();
+        } else {
+            boardList = boardRepository.findAll(page, keyword); // page = 1
+            totalCount = boardRepository.count(keyword);
+
+        }
+
+        // System.out.println("테스트 : totalCount :" + totalCount);
+        int totalPage = totalCount / 3; // totalPage = 1
+        if (totalCount % 3 > 0) {
+            totalPage = totalPage + 1; // totalPage = 2
+        }
+        boolean last = totalPage - 1 == page;
+
+        // System.out.println("테스트 :" + boardList.size());
+        // System.out.println("테스트 :" + boardList.get(0).getTitle());
+
+        request.setAttribute("boardList", boardList);
+        request.setAttribute("prevPage", page - 1);
+        request.setAttribute("nextPage", page + 1);
+        request.setAttribute("first", page == 0 ? true : false);
+        request.setAttribute("last", last);
+        request.setAttribute("totalPage", totalPage);
+        request.setAttribute("totalCount", totalCount);
+        request.setAttribute("keyword", keyword);
+
+        return "index";
     }
 
     @PostMapping("/board/{id}/update")
@@ -91,71 +135,21 @@ public class BoardController {
         return "redirect:/";
     }
 
-    // http://localhost:8080?num=4
-    @GetMapping({ "/", "/board" })
-    public String index(
-            @RequestParam(defaultValue = "0") Integer page,
-            HttpServletRequest request) {
-        // 1. 유효성 검사 X
-        // 2. 인증검사 X
-
-        List<Board> boardList = boardRepository.findAll(page); // page = 1
-        int totalCount = boardRepository.count(); // totalCount = 5
-
-        System.out.println("테스트 : totalCount :" + totalCount);
-        int totalPage = totalCount / 3; // totalPage = 1
-        if (totalCount % 3 > 0) {
-            totalPage = totalPage + 1; // totalPage = 2
-        }
-        boolean last = totalPage - 1 == page;
-
-        System.out.println("테스트 :" + boardList.size());
-        System.out.println("테스트 :" + boardList.get(0).getTitle());
-
-        request.setAttribute("boardList", boardList);
-        request.setAttribute("prevPage", page - 1);
-        request.setAttribute("nextPage", page + 1);
-        request.setAttribute("first", page == 0 ? true : false);
-        request.setAttribute("last", last);
-        request.setAttribute("totalPage", totalPage);
-        request.setAttribute("totalCount", totalCount);
-
-        return "index";
-    }
-
     @PostMapping("/board/save")
     public String save(WriteDTO writeDTO) {
-        // validation check (유효성 검사)
-        if (writeDTO.getTitle() == null || writeDTO.getTitle().isEmpty()) {
-            return "redirect:/40x";
-        }
-        if (writeDTO.getContent() == null || writeDTO.getContent().isEmpty()) {
-            return "redirect:/40x";
-        }
-
-        // 인증체크
-        User sessionUser = (User) session.getAttribute("sessionUser");
-        if (sessionUser == null) {
-            return "redirect:/loginForm";
-        }
-
-        boardRepository.save(writeDTO, sessionUser.getId());
+        boardRepository.save(writeDTO, 1);
         return "redirect:/";
     }
 
     @GetMapping("/board/saveForm")
     public String saveForm() {
-        User sessionUser = (User) session.getAttribute("sessionUser");
-        if (sessionUser == null) {
-            return "redirect:/loginForm";
-        }
+
         return "board/saveForm";
     }
 
-    // localhost:8080/board/1
-    // localhost:8080/board/50
-    @GetMapping("/board/{id}")
-    public String detail(@PathVariable Integer id, HttpServletRequest request) { // C
+    @ResponseBody
+    @GetMapping("/v1/board/{id}")
+    public List<BoardDetailDTO> detailV1(@PathVariable Integer id) {
         User sessionUser = (User) session.getAttribute("sessionUser"); // 세션접근
         List<BoardDetailDTO> dtos = null;
         if (sessionUser == null) {
@@ -163,18 +157,41 @@ public class BoardController {
         } else {
             dtos = boardRepository.findByIdJoinReply(id, sessionUser.getId());
         }
+        return dtos;
+    }
 
-        boolean pageOwner = false;
-        if (sessionUser != null) {
-            // System.out.println("테스트 세션 ID : " + sessionUser.getId());
-            // System.out.println("테스트 세션 board.getUser().getId() : " +
-            // board.getUser().getId());
-            pageOwner = sessionUser.getId() == dtos.get(0).getBoardUserId();
-            // System.out.println("테스트 : pageOwner : " + pageOwner);
+    @ResponseBody
+    @GetMapping("/v2/board/{id}")
+    public BoardDetailDTOV2 detailV2(@PathVariable Integer id) {
+        session.setAttribute("sessionUser", new User());
+        User sessionUser = (User) session.getAttribute("sessionUser"); // 세션접근
+        List<BoardDetailDTO> dtos = null;
+        BoardDetailDTOV2 dtoV2 = null;
+        if (sessionUser == null) {
+            dtos = boardRepository.findByIdJoinReply(id, null);
+            dtoV2 = new BoardDetailDTOV2(dtos, null);
+        } else {
+            dtos = boardRepository.findByIdJoinReply(id, sessionUser.getId());
+            dtoV2 = new BoardDetailDTOV2(dtos, sessionUser.getId());
         }
+
+        return dtoV2;
+    }
+
+    // localhost:8080/board/1
+    // localhost:8080/board/50
+    @GetMapping("/board/{id}")
+    public String detail(@PathVariable Integer id, HttpServletRequest request) { // C
+        // mock (세션으로 변경하자)
+        int sessionUserId = 1;
+
+        List<BoardDetailDTO> dtos = boardRepository.findByIdJoinReply(id, sessionUserId);
+
+        boolean pageOwner = sessionUserId == id;
 
         request.setAttribute("dtos", dtos);
         request.setAttribute("pageOwner", pageOwner);
+
         return "board/detail"; // V
     }
 }

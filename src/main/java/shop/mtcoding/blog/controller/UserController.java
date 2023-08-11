@@ -70,7 +70,7 @@ public class UserController {
         return "redirect:/exLogin";
     }
 
-    // 실무
+    // 실무(AOP)
     @PostMapping("/join")
     public String join(JoinDTO joinDTO) {
         // validation check (유효성 검사)
@@ -84,7 +84,10 @@ public class UserController {
             return "redirect:/40x";
         }
         // DB에 해당 username이 있는지 체크해보기
+        // JPA(기본 메서드활용, 기술에 대한원리공부)
         User user = userRepository.findByUsername(joinDTO.getUsername());
+
+        // 에러네 대한 처리를 담당하는 클래스 하나생성 ->위임->자바스크립트로변경
         if (user != null) {
             return "redirect:/50x";
         }
